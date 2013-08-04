@@ -1,0 +1,44 @@
+<?php if (!defined('APPLICATION')) exit();
+
+// YOU HAVE TO SPECIFY THE CATEGORY MANUALLY BY NOW!
+define('EXCLUDED_CATEGORY', '2');
+
+$PluginInfo['ExcludeCategories'] = array(
+    'Description' => 'Exclude categories from discussion index. Inspired by peregrines HideCategories',
+    'Version' => '0.1',
+    'RequiredApplications' => array('Vanilla' => '2.0.18'),
+    'RequiredTheme' => FALSE, 
+    'RequiredPlugins' => FALSE,
+    'HasLocale' => TRUE,
+    // 'SettingsUrl' => '/plugin/example',
+    // 'SettingsPermission' => 'Garden.AdminUser.Only',
+    'Author' => 'Robin'
+);
+
+class ExcludeCategoriesPlugin extends Gdn_Plugin {
+    public function Setup() {
+        if (C('Plugins.ExcludeCategories.CategoryID') == '') {
+            SaveToConfig('Plugins.ExcludeCategories.CategoryID', EXCLUDED_CATEGORY, array(TRUE, FALSE));
+        }
+    } // End of Setup
+
+   public function OnDisable() {
+      RemoveFromConfig('Plugins.ExcludeCategories.CategoryID');
+   } // End of OnDisable
+
+    public function DiscussionModel_BeforeGet_Handler($Sender) {
+        $wheres = $Sender->EventArguments['Wheres'];
+       
+        if(
+            // all discussions
+            empty($wheres) ||
+            // discussions/mine and /profile/discussions/...
+            (isset($wheres['d.InsertUserID']) && count($wheres == 1))
+        )
+        {
+            // $Sender->SQL->Where('d.CategoryID <>', C('Plugins.ExcludeCategories.CategoryID'));
+            $Sender->SQL->Where('d.CategoryID <>', C('Plugins.ExcludeCategories.CategoryID'));
+        }
+    } // End of DiscussionModel_BeforeGet_Handler
+   
+} // End of ExcludeCategoriesPlugin

@@ -12,13 +12,6 @@ $PluginInfo['ExcludeCategories'] = array(
     'Author' => 'Robin'
 );
 
-// TODO:
-// My Discussions counter
-// Comments counter
-// All Discussions counter
-// Category module
-
-
 class ExcludeCategoriesPlugin extends Gdn_Plugin {
     public function Setup() {
     } // End of Setup
@@ -30,8 +23,8 @@ class ExcludeCategoriesPlugin extends Gdn_Plugin {
     // thanks to hgtonight for pointing out how this could be done
     public function DiscussionModel_BeforeGet_Handler($Sender) {
         $wheres = $Sender->EventArguments['Wheres'];
-        // all discussions or discussions/mine and /profile/discussions/...
-        if(empty($wheres) || (isset($wheres['d.InsertUserID']) && count($wheres == 1)))
+        // all discussions
+        if(empty($wheres))
         {
             $Sender->SQL->WhereNotIn('d.CategoryID', C('Plugins.ExcludeCategories.CategoryIDs'));
         }

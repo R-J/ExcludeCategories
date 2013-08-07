@@ -1,8 +1,5 @@
 <?php if (!defined('APPLICATION')) exit();
 
-// YOU HAVE TO SPECIFY THE CATEGORY MANUALLY BY NOW!
-define('EXCLUDED_CATEGORY', '2');
-
 $PluginInfo['ExcludeCategories'] = array(
     'Description' => 'Exclude categories from discussion index. Inspired by peregrines HideCategories',
     'Version' => '0.1',
@@ -10,35 +7,65 @@ $PluginInfo['ExcludeCategories'] = array(
     'RequiredTheme' => FALSE, 
     'RequiredPlugins' => FALSE,
     'HasLocale' => TRUE,
-    // 'SettingsUrl' => '/plugin/example',
-    // 'SettingsPermission' => 'Garden.AdminUser.Only',
+    'SettingsUrl' => '/settings/excludecategories',
+    'SettingsPermission' => 'Garden.AdminUser.Only',
     'Author' => 'Robin'
 );
 
+// TODO:
+// My Discussions counter
+// Comments counter
+// All Discussions counter
+// Category module
+
+
 class ExcludeCategoriesPlugin extends Gdn_Plugin {
     public function Setup() {
-        if (C('Plugins.ExcludeCategories.CategoryID') == '') {
-            SaveToConfig('Plugins.ExcludeCategories.CategoryID', EXCLUDED_CATEGORY, array(TRUE, FALSE));
-        }
     } // End of Setup
 
    public function OnDisable() {
-      RemoveFromConfig('Plugins.ExcludeCategories.CategoryID');
+        RemoveFromConfig('Plugins.ExcludeCategories.CategoryIDs');
    } // End of OnDisable
 
+    // thanks to hgtonight for pointing out how this could be done
     public function DiscussionModel_BeforeGet_Handler($Sender) {
         $wheres = $Sender->EventArguments['Wheres'];
-       
-        if(
-            // all discussions
-            empty($wheres) ||
-            // discussions/mine and /profile/discussions/...
-            (isset($wheres['d.InsertUserID']) && count($wheres == 1))
-        )
+        // all discussions or discussions/mine and /profile/discussions/...
+        if(empty($wheres) || (isset($wheres['d.InsertUserID']) && count($wheres == 1)))
         {
-            // $Sender->SQL->Where('d.CategoryID <>', C('Plugins.ExcludeCategories.CategoryID'));
-            $Sender->SQL->Where('d.CategoryID <>', C('Plugins.ExcludeCategories.CategoryID'));
+            $Sender->SQL->WhereNotIn('d.CategoryID', C('Plugins.ExcludeCategories.CategoryIDs'));
         }
     } // End of DiscussionModel_BeforeGet_Handler
    
+    // stolen from addon Anonymouse
+    public function SettingsController_ExcludeCategories_Create($Sender) {
+        $Sender->Permission('Garden.AdminUser.Only');
+		$Sender->Title('Exclude Categories Settings');
+		$Sender->AddSideMenu('settings/excludecategories');
+		
+		$Validation = new Gdn_Validation();
+    	$Validation->ApplyRule('Plugins.ExcludeCategories.CategoryIDs', 'RequiredArray');
+		$ConfigurationModel = new Gdn_ConfigurationModel($Validation);
+		$ConfigurationModel->SetField(array('Plugins.ExcludeCategories.CategoryIDs'));
+		
+    	$Form = $Sender->Form;
+		$Sender->Form->SetModel($ConfigurationModel);
+		
+		if ($Sender->Form->AuthenticatedPostBack() != FALSE) {
+            if ($Sender->Form->Save() != FALSE) {
+				$Sender->StatusMessage = T('Saved');
+            }
+		} else {
+			$Sender->Form->SetData($ConfigurationModel->Data);
+		}
+	
+		$CategoryModel = new Gdn_Model('Category');
+		$Sender->CategoryData = $CategoryModel->GetWhere(array('AllowDiscussions' => 1, 'CategoryID <>' => -1));
+		
+		$Sender->ExcludeCategory = C('Plugins.ExcludeCategories.CategoryIDs');
+
+		$Sender->View = $this->GetView('settings.php');
+		$Sender->Render();
+	} // End of SettingsController_ExcludeCategories_Create
+
 } // End of ExcludeCategoriesPlugin
